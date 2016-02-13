@@ -165,3 +165,5 @@ b 0x_load_end_address       // go back to 'load end address' to execute next che
     
 ©CosmoCortney
     
+
+'0xXX' means that the offset is yet not determined because the code size may change. Same for b 0x_load_end_address.
