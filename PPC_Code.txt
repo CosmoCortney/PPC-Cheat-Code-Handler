@@ -2,6 +2,7 @@ scheme:
 CCPS0000 LLLLLLLL
 VVVVVVVV 00000000
     
+Supported code types: RAM Writes (with pointers and pointer-in-pointer)
 RAM writes:
 00PS0000 LLLLLLLL
 VVVVVVVV 00000000
@@ -14,12 +15,18 @@ OFFSET   VVVVVVVV
 
 
 // all cheat codes are stored in range 10015000 - 10017000. This area is always filled with zeros (need to veryfy if this is the case during loading times). Offers space for 2048 lines of cheat codes.
-// register 8 is fuggitive and can be overwritten without worries
+// register 5 is fuggitive and can be overwritten without worries
+// r0 mustn't be touched. Loading or writing to an address into there will freeze the system
+// r6 is used for the start of the cheat code table (0x10015000 )
+// r7 is used for the end of the cheat code table (0x10017000)
+
+.word 0x10015000            // start address
+.word 0x10017000            // end address
     
 0xA11AE200                  // Actual code handler starts here  
 
-lwz r29,852(r1)             // Original instruction that is overwritten by 'b 0x5E9E0'/'b 0x0xA11AE200' at 0xA114F820 which mustn't be lost
-lis r5, 0xA11A              // Load address 0xA11AE100 into r5 because r0 - r7 and f0 - f4 need to be backed up there
+lwz r29,852(r1)             // Original instruction that is over written by 'b 0x5E9E0' at 0xA114F820 which mustn't be lost
+lis r5, 0xA11A              // Load address 0xA11AE100 into r5 because r0 - r7 and f0 - f4 will be backed up there
 ori r5, r5, 0xE100
 stw r0, 0x0 (r5)            // backup r0
 stw r1, 0x04 (r5)           // backup r1
@@ -55,7 +62,7 @@ b 0xA11B0E00                // if there is anything else then it's no code type 
 //0xA11B01000
 lbz r2, 0x01 (r6)           // load pointer check and data size value into r2
 cmpwi r2, 0x20              // compare it with 0x20 (to ensure whether it's a pointer-in-pointer code or not)
-bge- 0xXX                   // if equal or greater than 0x20 then it's a pointer-in-pointer and branch to 0xXX to p-i-p write function
+bge- 0xA11B1120                  // if equal or greater than 0x20 then it's a pointer-in-pointer and branch to 0xXX to p-i-p write function
 cmpwi r2, 0x10              // else compare it with 0x10 (to ensure whether it's a pointer code or not)
 bge- 0x54                   // if equal or greater than 0x10 then it's a pointer and branch by 0x54 to pointer write function
 cmpwi r2, 0x00              // else it must be a normal RAM write. check data type for 8bit
@@ -143,6 +150,99 @@ addi r6, r6, 0x18           // add 0x18 to initial address value to read from ne
 b 0xa11ae244                // go back to 'load end address' to execute next cheat code 
     
 
+    
+//--- check datasize of pointer-in-pointer ---
+cmpwi r2, 0x20              // check data type for 8bit
+beq- 0x10                   // if equal, goto 0x10
+cmpwi r2, 0x21              // else check data type for 16bit
+beq- 0xa11b1190/0x64        // if equal goto 0x40 to 16bit function
+b 0xXX                      // else goto 32bit function since otherwise it only can be this value type   
+      
+//--- 8bit pointer-in-pointer write function ---
+lwz r2, 0x4 (r6)            // load pointer location into r2
+lwz r2, 0 (r2)              // load pointer/address/value into r2
+lwz r3, 0x08 (r6)           // load range start into r3
+lwz r4, 0x0C (r6)           // load range end into r4
+cmpw r2, r3                 // compare pointer with range start
+blt- 0xA11B1188             // abort goto add 0x18
+cmpw r2, r4                 // compare pointer with range end
+bgt- 0xA11B1188             // abort goto add 0x18
+lwz r3, 0x10 (r6)           // load offset into r3
+add r2, r2, r3              // add pointer with offset and store into r2
+lwz r2, 0 (r2)              // load second pointer into r2    
+lwz r3, 0x18 (r6)           // load second range start into r3
+lwz r4, 0x1C (r6)           // load second range end into r4
+cmpw r2, r3                 // compare pointer with range start
+blt- 0xA11B1188             // abort goto add 0x18
+cmpw r2, r4                 // compare pointer with range end
+bgt- 0xA11B1188             // abort goto add 0x18   
+lwz r3, 0x20 (r6)           // load offset into r3
+add r2, r2, r3              // add pointer with offset and store into r2
+lbz r3, 0x27 (r6)           // load byte into r3
+stb r3, 0 (r2)              // store cheat value
+addi r6, r6, 0x28           // add 0x18 to initial address value to read from next cheat code
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code    
+    
+//--- 16bit pointer-in-pointer write function ---
+lwz r2, 0x4 (r6)            // load pointer location into r2
+lwz r2, 0 (r2)              // load pointer/address/value into r2
+lwz r3, 0x08 (r6)           // load range start into r3
+lwz r4, 0x0C (r6)           // load range end into r4
+cmpw r2, r3                 // compare pointer with range start
+blt- 0xA11B11E4             // abort goto add 0x18
+cmpw r2, r4                 // compare pointer with range end
+bgt- 0xA11B11E4             // abort goto add 0x18
+lwz r3, 0x10 (r6)           // load offset into r3
+add r2, r2, r3              // add pointer with offset and store into r2
+lwz r2, 0 (r2)              // load second pointer into r2    
+lwz r3, 0x18 (r6)           // load second range start into r3
+lwz r4, 0x1C (r6)           // load second range end into r4
+cmpw r2, r3                 // compare pointer with range start
+blt- 0xA11B11E4             // abort goto add 0x18
+cmpw r2, r4                 // compare pointer with range end
+bgt- 0xA11B11E4             // abort goto add 0x18   
+lwz r3, 0x20 (r6)           // load offset into r3
+add r2, r2, r3              // add pointer with offset and store into r2
+lhz r3, 0x26 (r6)           // load byte into r3
+sth r3, 0 (r2)              // store cheat value
+addi r6, r6, 0x28           // add 0x18 to initial address value to read from next cheat code
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code   
+    
+    
+  //--- 32bit pointer-in-pointer write function ---
+lwz r2, 0x4 (r6)            // load pointer location into r2
+lwz r2, 0 (r2)              // load pointer/address/value into r2
+lwz r3, 0x08 (r6)           // load range start into r3
+lwz r4, 0x0C (r6)           // load range end into r4
+cmpw r2, r3                 // compare pointer with range start
+blt- 0xA11B1240             // abort goto add 0x18
+cmpw r2, r4                 // compare pointer with range end
+bgt- 0xA11B1240             // abort goto add 0x18
+lwz r3, 0x10 (r6)           // load offset into r3
+add r2, r2, r3              // add pointer with offset and store into r2
+lwz r2, 0 (r2)              // load second pointer into r2    
+lwz r3, 0x18 (r6)           // load second range start into r3
+lwz r4, 0x1C (r6)           // load second range end into r4
+cmpw r2, r3                 // compare pointer with range start
+blt- 0xA11B1240             // abort goto add 0x18
+cmpw r2, r4                 // compare pointer with range end
+bgt- 0xA11B1240             // abort goto add 0x18   
+lwz r3, 0x20 (r6)           // load offset into r3
+add r2, r2, r3              // add pointer with offset and store into r2
+lwz r3, 0x24 (r6)           // load byte into r3
+stw r3, 0 (r2)              // store cheat value
+addi r6, r6, 0x28           // add 0x18 to initial address value to read from next cheat code
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code  
+    
+    
+00200000 10014F90   00  04 type address
+10010000 10020000   08  0C range range
+00000008 00000000   10  14 offset padding
+10010000 10020000   18  1C range range
+00000008 00000088   20  24 offset value
+    28
+    
+    
     .
     .
     .
