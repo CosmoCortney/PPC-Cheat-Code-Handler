@@ -18,8 +18,8 @@ OFFSET   VVVVVVVV
     
 0xA11AE200                  // Actual code handler starts here  
 
-lwz r29,852(r1)             // Original instruction that is over written by 'b 0x5E9E0' at 0xA114F820 which mustn't be lost
-lis r5, 0xA11A              // Load address 0xA11AE100 into r8 because r0 - r7 and f0 - f4 will be backed up there
+lwz r29,852(r1)             // Original instruction that is overwritten by 'b 0x5E9E0'/'b 0x0xA11AE200' at 0xA114F820 which mustn't be lost
+lis r5, 0xA11A              // Load address 0xA11AE100 into r5 because r0 - r7 and f0 - f4 need to be backed up there
 ori r5, r5, 0xE100
 stw r0, 0x0 (r5)            // backup r0
 stw r1, 0x04 (r5)           // backup r1
