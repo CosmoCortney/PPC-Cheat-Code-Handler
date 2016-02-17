@@ -1,0 +1,200 @@
+The Cafe Code Type is the first code type for Wii U cheat codes designed and developed by CosmoCortney. Now you can use cheats with your favorite Wii U game just as like in the GCN and Wii days!
+
+The generic code type scheme looks like this:
+CCPS0000 LLLLLLLL
+VVVVVVVV 00000000
+
+for pointers:
+CC1S0000 LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ VVVVVVVV
+
+CC: Code Type. 00 = RAM write, 01 - Patch/String Write, 02 = Slide/Skipp Write, 
+P: Pointer. 0 = No pointer, 1 = Pointer, 2 = Pointer-In-Pointer
+LLLLLLLL = Address/Location (If more addresses are involved the next one will be indicated by the next alphabetical letter (MMMMMMMM, ...))
+VVVVVVVV = Value. 8bit/1Byte values must be written on the right. The 3 Bytes before must be 00 (000000VV). 16bit/2Byte: 0000VVVV, 32bit/4Bytes: VVVVVVVV.
+The other zeros must be kept. They are used to fill unused space to ensure the codehandler works properly and/or will possibly be replaced by future functions.
+QQQQQQQQ: Offset between where the pointer points at and the value you want to modify. If the offset is negative you must change it to a signless integer (-0x2130 -> 0xFFFFDED0). You can do this with any hex calculator by substracting 0 by your offset.
+Pointered codes will require a defined memory range. This is used to avoid inevitable freezes while loading another level/menu/cutscene.
+The beginning of the range will most likely be 10000000 and the end 4C000000. But you can pick one possible value-location of a pointer code and add and substract 0x00100000 to it to reduce the size of the range. This can enhance the avoidation of possible freezes even more.
+(example: Possible final location: 3738E0CC. 3738E0CC - 00100000 = 3728E0CC; 3738E0CC + 00100000 = 3748E0CC. Range of 3738E0CC ~ 3748E0CC.
+
+Pointer-In-Pointer are only supported in RAM writes.
+
+
+RAM writes (00)
+General:
+00PS0000 LLLLLLLL
+VVVVVVVV 00000000
+
+8bit:
+00000000 LLLLLLLL
+000000VV 00000000
+
+16bit:
+00010000 LLLLLLLL
+0000VVVV 00000000
+
+32bit:
+00020000 LLLLLLLL
+VVVVVVVV 00000000
+
+Example:
+infinite health in Wind Waker HD
+00000000 15073BC3
+00000050 00000000
+
+
+Pointered RAM Writes:
+8bit:
+00100000 LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ 000000VV
+
+16bit:
+00110000 LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ 0000VVVV
+
+32bit:
+00120000 LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ VVVVVVVV
+
+Example:
+Wind Waker HD - Stretch Link ([1097648C] + 6a30 0x43000000)
+00120000 1097648C
+48600000 48800000
+00006A30 43000000
+
+
+Pointer-In-Pointer:
+8bit:
+00200000 LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ 00000000
+RANGE_ST RANGE_EN
+QQQQQQQQ 000000VV
+
+16bit:
+00210000 LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ 00000000
+RANGE_ST RANGE_EN
+QQQQQQQQ 0000VVVV
+
+32bit:
+00220000 LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ 00000000
+RANGE_ST RANGE_EN
+QQQQQQQQ VVVVVVVV
+
+Example:
+00210000 20367528
+38000000 39000000
+00001250 00000000
+3E000000 3F000000
+0035842C 00001234
+
+
+
+Patch/String writes (01)
+01P0NNNN LLLLLLLL
+VVVVVVVV VVVVVVVV
+VVVV0000 000000FF
+
+NNNN = The amount of bytes to write starting at address LLLLLLLL.
+Every line must have 2 blocks consisting of 8 hex digits each. If the value (VV) does not fill a line you will have to fill the empty space with zeros and the last two with FF (VVVV0000 000000FF). If only the last byte of a line is unused simply fill it with FF (VVVVVVVV VVVVVVFF). If your value fills all 16 hex digits then but 00000000 000000FF beneath it
+(VVVVVVVV VVVVVVVV
+ 00000000 000000FF)
+
+Example:
+01000012 40232004
+11221122 11221122
+11221122 11221122
+11220000 000000FF
+
+This writes a hex string of
+11221122 11221122 11221122 11221122 1122 starting at 0x40232004 (without spaces, duh).
+
+Pointered:
+0110NNNN LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ 00000000
+VVVVVVVV VVVVVVVV
+VVVVVVVV VVVV00FF
+
+Example:
+01100014 13501688
+20100000 20200000
+00232020 00000000
+11331133 11331133
+11331133 11331133
+11331133 000000FF
+
+No pointer-in-pointer support
+
+
+
+
+Slide/Skip (02)
+02PSNNNN LLLLLLLL
+VVVVVVVV XXXXXXXX
+IIIIIIII 00000000
+
+NNNN: Amount of slides/skips
+XXXXXXXX: Offset between each write/offset to skip/slide
+IIIIIIII: Value increment for each slide. Leave it as 00000000 if not wanted.
+
+8bit:
+0200NNNN LLLLLLLL
+000000VV XXXXXXXX
+000000II 00000000
+
+16bit:
+0201NNNN LLLLLLLL
+0000VVVV XXXXXXXX
+0000IIII 00000000
+
+32bit:
+8bit:
+0202NNNN LLLLLLLL
+VVVVVVVV XXXXXXXX
+IIIIIIII 00000000
+
+Example:
+02020064 423E0DC4
+00100000 00001000
+00000100 00000000
+
+
+Pointered:
+021PNNNN LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ VVVVVVVV
+XXXXXXXX IIIIIIII
+
+8bit:
+0210NNNN LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ 000000VV
+XXXXXXXX 000000II
+
+16bit:
+0211NNNN LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ 0000VVVV
+XXXXXXXX 0000IIII
+
+32bit:
+0210NNNN LLLLLLLL
+RANGE_ST RANGE_EN
+QQQQQQQQ VVVVVVVV
+XXXXXXXX IIIIIIII
+
+Example:
+0210012C 1987EDC8
+45200000 45500000
+000202EC 00000010
+00002000 00000001
