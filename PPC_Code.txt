@@ -1,17 +1,3 @@
-scheme:
-CCPS0000 LLLLLLLL
-VVVVVVVV 00000000
-    
-Supported code types: RAM Writes (with pointers and pointer-in-pointer)
-RAM writes:
-00PS0000 LLLLLLLL
-VVVVVVVV 00000000
-    
-RAM writes with pointer
-001S0000 LLLLLLLL
-R START  R END   
-OFFSET   VVVVVVVV
-
 
 
 // all cheat codes are stored in range 10015000 - 10017000. This area is always filled with zeros (need to veryfy if this is the case during loading times). Offers space for 2048 lines of cheat codes.
@@ -23,11 +9,14 @@ OFFSET   VVVVVVVV
 .word 0x10015000            // start address
 .word 0x10017000            // end address
     
-0xA11AE200                  // Actual code handler starts here  
+0xA11AE1f4                  // Actual code handler starts here  
 
 lwz r29,852(r1)             // Original instruction that is over written by 'b 0x5E9E0' at 0xA114F820 which mustn't be lost
 lis r5, 0xA11A              // Load address 0xA11AE100 into r5 because r0 - r7 and f0 - f4 will be backed up there
 ori r5, r5, 0xE100
+stw r8, 0x30 (r5)           // backup r8
+stw r9, 0x34 (r5)           // backup r9
+stw r10, 0x38 (r5)          // backup r10
 stw r0, 0x0 (r5)            // backup r0
 stw r1, 0x04 (r5)           // backup r1
 stw r2, 0x08 (r5)           // backup r2
@@ -52,8 +41,12 @@ cmpw r1, r2                 // compare them
 bne- 0x8                    // if they are not equal, go to 0x8
 b 0xA11B0E00                // if they are equal there aren't any cheats following. so go out of cheat managing for the current frame
 
-cmpwi r1, 0x0000            // check if it's a RAM write code type
-beq- 0xA11B1000            // if true goto function to check if pointers are involved (lbz r2, 0x01 (r6))
+cmpwi r1, 0x00              // check if it's a RAM write code type
+beq- 0xA11B1000             // if true goto function to check if pointers are involved (lbz r2, 0x01 (r6))
+cmpwi r1, 0x01              // check if it's a patch/fill write code type
+beq- 0xA11B0C00             // if true goto function to check if pointers are involved (lbz r2, 0x01 (r6))  
+cmpwi r1, 0x02              // check if it's a skip/slide write code type
+beq- 0xA11B0800             // if true goto function to check if pointers are involved 
 nop                         // placeholder
 nop
 b 0xA11B0E00                // if there is anything else then it's no code type and go to abortion
@@ -235,13 +228,266 @@ addi r6, r6, 0x28           // add 0x18 to initial address value to read from ne
 b 0xa11ae244                // go back to 'load end address' to execute next cheat code  
     
     
-00200000 10014F90   00  04 type address
-10010000 10020000   08  0C range range
-00000008 00000000   10  14 offset padding
-10010000 10020000   18  1C range range
-00000008 00000088   20  24 offset value
-    28
+//--- A11B0C00 fill patch write
+lbz r1, 0x01 (r6)           //load pointer byte
+cmpwi r1, 0x10               // check if it's a pointer
+beq- 0xXXXX                 // if true, goto 0xXX
+lhz r1, 0x02 (r6)           // else no pointer and load amount of bytes to write
+lwz r3, 0x04 (r6)           // load address of cheat into r3
+lis r2, 0                   // clear r2 for counter
+addi r6, r6, 0x07           // fix counts
+subi r3, r3, 0x01           // fix counts
+addi r2, r2, 0x01           // increase r2 by 1
+addi r3, r3, 0x01           // increase cheat address by 1
+addi r6, r6, 0x01           // increase start address by 1
+lbz r4, 0 (r6)              // load byte of increased index into r4
+stb r4, 0 (r3)              // store cheat
+cmpw r1, r2                 // check if counter equals amount of bytes in cheat
+bne- 0xA11B0C20             // goto addi r2, r2, 0x01 
+addi r6, r6, 0x01           // increase start address by 1
+lbz r2, 0 (r6)              // fill
+cmpwi r2, 0xFF              // fill
+bne- -0x0C                  // fill 
+addi r6, r6, 0x01           // fix "start address"
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code  
     
+    
+    
+    
+// --- fill patch write    pointer  A11B0C54
+lhz r1, 0x02 (r6)           // load amount of bytes to write
+lwz r3, 0x04 (r6)           // load address of cheat into r3
+lwz r3, 0 (r3)              // load pointer into r3
+    
+lwz r2, 0x08 (r6)           // load start range
+lwz r4, 0x0C (r6)           // load end range
+cmpw r3, r2
+blt- 0xa11ae244 
+cmpw r3, r4
+bgt- 0xa11ae244 
+
+lwz r2, 0x10 (r6)           // load offset
+add r3, r3, r2              // add offset to address
+lis r2, 0                   // clear r2 for counter
+addi r6, r6, 0x17           // fix counts
+subi r3, r3, 0x01           // fix counts
+addi r2, r2, 0x01           // increase r2 by 1
+addi r3, r3, 0x01           // increase cheat address by 1
+addi r6, r6, 0x01           // increase start address by 1
+lbz r4, 0 (r6)              // load byte of increased index into r4
+stb r4, 0 (r3)              // store cheat
+cmpw r1, r2                 // check if counter equals amount of bytes in cheat
+bne- 0xA11B0C20             // goto addi r2, r2, 0x01 
+addi r6, r6, 0x01           // increase start address by 1
+lbz r2, 0 (r6)              // fill
+cmpwi r2, 0xFF              // fill
+bne- -0x0C                  // fill 
+addi r6, r6, 0x01           // fix "start address"
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code  
+  
+addi r6, r6, 0x17           // fix counts A11B0CC0
+add r6, r6, r1
+addi r6, r6, 0x01           // increase start address by 1
+lbz r2, 0 (r6)              // fill
+cmpwi r2, 0xFF              // fill
+   bne- -0x0C   
+addi r6, r6, 0x01           // fix "start address"    
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code  
+    
+//--- 0xA11B0800 skip/slide write function pointer check
+lbz r1, 1 (r6)
+cmpwi r1, 0x10
+bge- 0xA11B090C
+    
+cmpwi r1, 0x02
+beq- 0xA11B08BC             // branch to 32bit function
+cmpwi r1, 0x01              // else
+beq- 0xA11B086C             // branch to 16bit function
+ 
+    // 8bit
+lhz r1, 0x02 (r6)            // else 8bit function. load number of skip writes into r1
+lwz r2, 0x04 (r6)            // load cheat's address into r2
+lbz r3, 0x0B (r6)            // load cheat value into r3
+lwz r4, 0x0C (r6)            // load offset into r4
+lbz r7, 0x13 (r6)            // load increment into r7
+lis r8, 0x00                // set counter 
+lwz r9, 0x04 (r6)           // back up cheat address___________________________________________  
+addi r8, r8, 0x01           // add 1 to counter
+cmpw r2, r9                 // check if cheat address has already increased
+bne- 0x10
+stb r3, 0 (r2)              // write first skip write's value
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+b -0x14                     // go write function
+add r3, r3, r7              // add increment to value
+stb r3, 0 (r2)              // write cheat value to increased address
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+cmpw r1, r8                 // check if counter has reach amount of writes
+bne- -0x28                  // if untrue, next count
+addi r6, r6, 0x18           // increase r6 to be able to read the next cheat in the list
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code 
+    
+
+    // 16bit
+lhz r1, 0x02 (r6)            // load number of skip writes into r1
+lwz r2, 0x04 (r6)            // load cheat's address into r2
+lhz r3, 0x0A (r6)            // load cheat value into r3
+lwz r4, 0x0C (r6)            // load offset into r4
+lhz r7, 0x12 (r6)            // load increment into r7
+lis r8, 0x00                // set counter 
+lwz r9, 0x04 (r6)           // back up cheat address___________________________________________  
+addi r8, r8, 0x01           // add 1 to counter
+cmpw r2, r9                 // check if cheat address has already increased
+bne- 0x10
+sth r3, 0 (r2)              // write first skip write's value
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+b -0x14                     // go write function
+add r3, r3, r7              // add increment to value
+sth r3, 0 (r2)              // write cheat value to increased address
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+cmpw r1, r8                 // check if counter has reach amount of writes
+bne- -0x28                  // if untrue, next write
+addi r6, r6, 0x18           // increase r6 to be able to read the next cheat in the list
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code 
+    
+    
+    // 32bit
+lhz r1, 0x02 (r6)            // load number of skip writes into r1
+lwz r2, 0x04 (r6)            // load cheat's address into r2
+lwz r3, 0x08 (r6)            // load cheat value into r3
+lwz r4, 0x0C (r6)            // load offset into r4
+lwz r7, 0x10 (r6)            // load increment into r7
+lis r8, 0x00                // set counter 
+lwz r9, 0x04 (r6)           // back up cheat address___________________________________________  
+addi r8, r8, 0x01           // add 1 to counter
+cmpw r2, r9                 // check if cheat address has already increased
+bne- 0x10
+stw r3, 0 (r2)              // write first skip write's value
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+b -0x14                     // go write function
+add r3, r3, r7              // add increment to value
+stw r3, 0 (r2)              // write cheat value to increased address
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+cmpw r1, r8                 // check if counter has reach amount of writes
+bne- -0x28                  // if untrue, next write
+addi r6, r6, 0x18           // increase r6 to be able to read the next cheat in the list
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code     
+    
+    
+ // pointer skip writes
+cmpwi r1, 0x12
+beq- 0xA11B0A1C            // branch to 32bit function
+cmpwi r1, 0x11              // else
+beq- 0xA11B099C            // branch to 16bit function
+ 
+    // 8bit
+lhz r1, 0x02 (r6)            // else 8bit function. load number of skip writes into r1
+lwz r2, 0x04 (r6)            // load cheat's address into r2
+lwz r2, 0 (r2)            // load pointer into r2
+lwz r3, 0x08 (r6)            // load start range into r3
+lwz r4, 0x0C (r6)            // load end range into r4
+cmpw r2, r3
+blt- 0xA11B0994             // if true abort to "addi r6, r6, 0x20"
+cmpw r2, r4
+bgt- 0xA11B0994            // if true abort to "addi r6, r6, 0x20"
+lwz r3, 0x10 (r6)           // load pointer offset into r3
+add r2, r2, r3              // add pointer with address   
+    
+lbz r3, 0x17 (r6)            // load cheat value into r3
+lwz r4, 0x18 (r6)            // load inc-offset into r4
+lbz r7, 0x1F (r6)            // load increment into r7
+lis r8, 0x00                // set counter 
+lwz r9, 0x04 (r6)            // load cheat's address into r9_______________________________________ 
+lwz r9, 0 (r9)           // load pointer
+lwz r10, 0x10 (r6)          // load pointer offset into r10
+add r9, r9, r10             // back up pointer + offset___________________________________________  
+addi r8, r8, 0x01           // add 1 to counter
+cmpw r2, r9                 // check if cheat address has already increased
+bne- 0x10
+stb r3, 0 (r2)              // write first skip write's value
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+b -0x14                     // go back to write function
+add r3, r3, r7              // add increment to value
+stb r3, 0 (r2)              // write cheat value to increased address
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+cmpw r1, r8                 // check if counter has reach amount of writes
+bne- -0x28                  // if untrue, next count
+addi r6, r6, 0x20           // increase r6 to be able to read the next cheat in the list
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code 
+   
+    
+    
+  
+    // 16bit
+lhz r1, 0x02 (r6)            // else 16bit function. load number of skip writes into r1
+lwz r2, 0x04 (r6)            // load cheat's address into r2
+lwz r2, 0 (r2)            // load pointer into r2
+lwz r3, 0x08 (r6)            // load start range into r3
+lwz r4, 0x0C (r6)            // load end range into r4
+cmpw r2, r3
+blt- 0xA11B0A14             // if true abort to "addi r6, r6, 0x20"
+cmpw r2, r4
+bgt- 0xA11B0A14              // if true abort to "addi r6, r6, 0x20"
+lwz r3, 0x10 (r6)           // load pointer offset into r3
+add r2, r2, r3              // add pointer with offset   
+    
+lhz r3, 0x16 (r6)            // load cheat value into r3
+lwz r4, 0x18 (r6)            // load inc-offset into r4
+lhz r7, 0x1E (r6)            // load increment val into r7
+lis r8, 0x00                // set counter 
+lwz r9, 0x04 (r6)            // load cheat's address into r9_______________________________________    
+lwz r9, 0 (r9)           // load pointer
+lwz r10, 0x10 (r6)          // load pointer offset into r10
+add r9, r9, r10             // back up pointer + offset___________________________________________  
+addi r8, r8, 0x01           // add 1 to counter
+cmpw r2, r9                 // check if cheat address has already increased
+bne- 0x10
+sth r3, 0 (r2)              // write first skip write's value
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+b -0x14                     // go back to write function
+add r3, r3, r7              // add increment to value
+sth r3, 0 (r2)              // write cheat value to increased address
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+cmpw r1, r8                 // check if counter has reach amount of writes
+bne- -0x28                  // if untrue, next count
+addi r6, r6, 0x20           // increase r6 to be able to read the next cheat in the list
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code    
+    
+    
+ 
+    // 32bit
+lhz r1, 0x02 (r6)            // else 32bit function. load number of skip writes into r1
+lwz r2, 0x04 (r6)            // load cheat's address into r2
+lwz r2, 0 (r2)            // load pointer into r2
+lwz r3, 0x08 (r6)            // load start range into r3
+lwz r4, 0x0C (r6)            // load end range into r4
+cmpw r2, r3
+blt- 0xA11B0A94             // if true abort to "addi r6, r6, 0x20"
+cmpw r2, r4
+bgt- 0xA11B0A94             // if true abort to "addi r6, r6, 0x20"
+lwz r3, 0x10 (r6)           // load pointer offset into r3
+add r2, r2, r3              // add pointer with address   
+    
+lwz r3, 0x14 (r6)            // load cheat value into r3
+lwz r4, 0x18 (r6)            // load inc-offset into r4
+lwz r7, 0x1C (r6)            // load increment into r7
+lis r8, 0x00                // set counter 
+lwz r9, 0x04 (r6)            // load cheat's address into r9_______________________________________  
+lwz r9, 0 (r9)           // load pointer
+lwz r10, 0x10 (r6)          // load pointer offset into r10
+add r9, r9, r10             // back up pointer + offset___________________________________________  
+addi r8, r8, 0x01           // add 1 to counter
+cmpw r2, r9                 // check if cheat address has already increased
+bne- 0x10
+stW r3, 0 (r2)              // write first skip write's value
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+b -0x14                     // go back to write function
+add r3, r3, r7              // add increment to value
+stW r3, 0 (r2)              // write cheat value to increased address
+add r2, r2, r4              // add offset (r4) to cheat's address (r2) into r2
+cmpw r1, r8                 // check if counter has reach amount of writes
+bne- -0x28                  // if untrue, next count
+addi r6, r6, 0x20           // increase r6 to be able to read the next cheat in the list
+b 0xa11ae244                // go back to 'load end address' to execute next cheat code     
     
     .
     .
@@ -260,6 +506,9 @@ lfs f0, 0x20 (r5)           // restore f0
 lfs f1, 0x24 (r5)           // restore f1
 lfs f2, 0x28 (r5)           // restore f2
 lfs f3, 0x2C (r5)           // restore f3
+lwz r8, 0x30 (r5)           // restore r8
+lwz r9, 0x34 (r5)           // restore r9
+lwz r10, 0x38 (r5)          // restore r10
 A11B0E30 b 0xa114f824       // exit code handler and go back
     
     
